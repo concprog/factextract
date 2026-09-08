@@ -195,6 +195,12 @@ def get_all_facts(conn) -> list[Fact]:
 
 
 @with_conn
+def get_fact_ids(conn) -> list[str]:
+    rows = conn.execute("SELECT hash FROM facts").fetchall()
+    return [row["hash"] for row in rows]
+
+
+@with_conn
 def get_all_islands(conn) -> list[Island]:
     rows = conn.execute("SELECT * FROM islands").fetchall()
     return [_island_from_row(conn, row) for row in rows]
