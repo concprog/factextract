@@ -59,17 +59,4 @@ TOOLS = [
     Tool(islands_with_fact, desc="Get islands containing a given fact hash. Args: fact_id (fact hash string)."),
 ]
 
-
-class FindIslands(dspy.Module):
-    def __init__(self, max_iters: int = 20):
-        super().__init__()
-        self.agent = dspy.ReActV2(
-            "fact_ids -> islands",
-            tools=TOOLS,
-            max_iters=max_iters,
-        )
-
-    def forward(self, fact_ids: list[str]) -> list[Island]:
-        pred = self.agent(fact_ids=fact_ids)
-        islands = pred.islands if hasattr(pred, "islands") else []
-        return [Island(**i) if isinstance(i, dict) else i for i in islands]
+find_islands = dspy.ReActV2("fact_ids -> islands", tools=TOOLS)
