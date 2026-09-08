@@ -1,6 +1,6 @@
 from pathlib import Path
 from pydantic import BaseModel, computed_field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Literal
 from xxhash import xxh32_hexdigest
 from dspy import Signature, InputField, OutputField
@@ -26,7 +26,7 @@ class Fact(BaseModel):
     content: str
     source: Source
     time: datetime
-    window: timedelta
+    window: int
 
     @computed_field
     @property
@@ -45,7 +45,15 @@ class Island(BaseModel):
 
 
 class ExtractFacts(Signature):
-    """Extract factual statements from source content. Infer time at which the fact was true, based on source metadata."""
+    """Extract factual statements from source content.
+
+    Each fact has:
+    - content: the factual statement
+    - source: the file it came from
+    - time: when the fact was true (ISO timestamp)
+    - window: how long the fact remains valid, in seconds
+      e.g. 2_592_000 = 30 days, 7_776_000 = 3 months, 31_536_000 = 1 year
+    """
 
     content: str = InputField(desc="Source content to extract facts from")
     source: Source = InputField(desc="Source metadata for the facts")

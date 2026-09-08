@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 
@@ -43,7 +43,7 @@ def _fact_from_row(conn, row) -> Fact:
         content=row["content"],
         source=_source_from_row(source_row),
         time=datetime.fromisoformat(row["time"]),
-        window=timedelta(seconds=row["window_seconds"]),
+        window=int(row["window_seconds"]),
     )
 
 
@@ -110,7 +110,7 @@ def store_facts(conn, facts: list[Fact]) -> list[str]:
     conn.executemany(
         "INSERT OR IGNORE INTO facts (hash, content, source_hash, time, window_seconds) VALUES (?, ?, ?, ?, ?)",
         [
-            (f.hash, f.content, f.source.hash, f.time.isoformat(), f.window.total_seconds())
+            (f.hash, f.content, f.source.hash, f.time.isoformat(), f.window)
             for f in facts
         ],
     )
@@ -148,7 +148,7 @@ def store_or_update_facts(conn, facts: list[Fact]) -> list[str]:
     conn.executemany(
         "INSERT OR REPLACE INTO facts (hash, content, source_hash, time, window_seconds) VALUES (?, ?, ?, ?, ?)",
         [
-            (f.hash, f.content, f.source.hash, f.time.isoformat(), f.window.total_seconds())
+            (f.hash, f.content, f.source.hash, f.time.isoformat(), f.window)
             for f in facts
         ],
     )
