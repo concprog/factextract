@@ -88,3 +88,8 @@ STORE_TOOLS = [
 ]
 
 find_islands = dspy.ReActV2(ExtractIslands, tools=STORE_TOOLS)
+
+
+def get_islands_agentic(fact_ids: list[str], facts: list[Fact]) -> list[Island]:
+    result = find_islands(fact_ids=fact_ids, facts=facts)
+    return [Island(**i) if isinstance(i, dict) else i for i in result.islands]
