@@ -1,3 +1,12 @@
 graph-db-path: data/graph.db
 metadata-db-path: data/metadata.db
 llm-model: gemini/gemini-3.5-flash-lite
+
+ingest:
+  header: false
+  footer: false
+  table-strategy: lines_strict
+  tokenizer: gpt2
+  chunk-size: 2048
+  chunk-overlap: 128
+  min-sentences-per-chunk: 1

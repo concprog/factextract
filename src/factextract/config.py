@@ -3,10 +3,21 @@ from functools import lru_cache
 from pydantic import BaseModel, field_validator
 
 
+class IngestConfig(BaseModel):
+    header: bool = False
+    footer: bool = False
+    table_strategy: str = "lines_strict"
+    tokenizer: str = "gpt2"
+    chunk_size: int = 2048
+    chunk_overlap: int = 128
+    min_sentences_per_chunk: int = 1
+
+
 class Config(BaseModel):
     graph_db_path: Path
     metadata_db_path: Path
     llm_model: str = "gemini/gemini-3.5-flash-lite"
+    ingest: IngestConfig = IngestConfig()
 
     @field_validator("graph_db_path", "metadata_db_path", mode="before")
     @classmethod
