@@ -77,6 +77,7 @@ def init_db() -> None:
 
         CREATE INDEX IF NOT EXISTS idx_facts_time ON facts(time);
         CREATE INDEX IF NOT EXISTS idx_facts_source ON facts(source_hash);
+        CREATE INDEX IF NOT EXISTS idx_facts_end ON facts(unixepoch(time) + window_seconds);
 
         CREATE TABLE IF NOT EXISTS islands (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,12 +224,12 @@ def get_islands_with_fact(conn, fact_id: str) -> list[Island]:
 
 @with_conn
 def get_facts_valid_at(conn, at: datetime) -> list[Fact]:
-    at_iso = at.isoformat()
+    at_epoch = int(at.timestamp())
     rows = conn.execute(
         "SELECT * FROM facts "
-        "WHERE time <= ? "
-        "AND datetime(time, '+' || cast(window_seconds as integer) || ' seconds') >= ?",
-        (at_iso, at_iso),
+        "WHERE unixepoch(time) <= ? "
+        "AND unixepoch(time) + window_seconds >= ?",
+        (at_epoch, at_epoch),
     ).fetchall()
     return [_fact_from_row(conn, row) for row in rows]
 
@@ -237,3 +238,22 @@ def get_facts_valid_at(conn, at: datetime) -> list[Fact]:
 def get_timestamps(conn) -> list[datetime]:
     rows = conn.execute("SELECT DISTINCT time FROM facts ORDER BY time").fetchall()
     return [datetime.fromisoformat(row["time"]) for row in rows]
+
+
+@with_conn
+def get_overlapping_facts(conn) -> list[tuple[Fact, Fact]]:
+    rows = conn.execute(
+        "SELECT a.*, b.* FROM facts a "
+        "JOIN facts b ON a.hash < b.hash "
+        "WHERE unixepoch(a.time) <= unixepoch(b.time) + b.window_seconds "
+        "AND unixepoch(b.time) <= unixepoch(a.time) + a.window_seconds"
+    ).fetchall()
+    result = []
+    for row in rows:
+        # left half = fact a, right half = fact b
+        cols = row.keys()
+        half = len(cols) // 2
+        a_row = {cols[i]: row[cols[i]] for i in range(half)}
+        b_row = {cols[i]: row[cols[i]] for i in range(half, len(cols))}
+        result.append((_fact_from_row(conn, a_row), _fact_from_row(conn, b_row)))
+    return result
