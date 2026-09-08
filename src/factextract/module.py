@@ -1,4 +1,3 @@
-import dspy
 from dspy import Predict
 
 from .schema import ExtractFacts, ExtractIslands, Fact, Island
