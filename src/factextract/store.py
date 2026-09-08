@@ -219,3 +219,21 @@ def get_islands_with_fact(conn, fact_id: str) -> list[Island]:
         (fact_id,),
     ).fetchall()
     return [_island_from_row(conn, row) for row in rows]
+
+
+@with_conn
+def get_facts_valid_at(conn, at: datetime) -> list[Fact]:
+    at_iso = at.isoformat()
+    rows = conn.execute(
+        "SELECT * FROM facts "
+        "WHERE time <= ? "
+        "AND datetime(time, '+' || cast(window_seconds as integer) || ' seconds') >= ?",
+        (at_iso, at_iso),
+    ).fetchall()
+    return [_fact_from_row(conn, row) for row in rows]
+
+
+@with_conn
+def get_timestamps(conn) -> list[datetime]:
+    rows = conn.execute("SELECT DISTINCT time FROM facts ORDER BY time").fetchall()
+    return [datetime.fromisoformat(row["time"]) for row in rows]
