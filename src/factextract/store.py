@@ -263,3 +263,24 @@ def get_overlapping_facts(conn) -> list[tuple[Fact, Fact]]:
         b_row = {cols[i]: row[cols[i]] for i in range(half, len(cols))}
         result.append((_fact_from_row(conn, a_row), _fact_from_row(conn, b_row)))
     return result
+
+
+@with_conn
+def get_islands_with_facts(conn) -> list[tuple[Island, list[Fact]]]:
+    rows = conn.execute("SELECT * FROM islands").fetchall()
+    result = []
+    for row in rows:
+        island = _island_from_row(conn, row)
+        facts = get_facts_in_island(row["id"])
+        result.append((island, facts))
+    return result
+
+
+@with_conn
+def get_unaffiliated_facts(conn) -> list[Fact]:
+    rows = conn.execute(
+        "SELECT f.* FROM facts f "
+        "LEFT JOIN island_fact IF ON f.hash = IF.fact_id "
+        "WHERE IF.fact_id IS NULL"
+    ).fetchall()
+    return [_fact_from_row(conn, row) for row in rows]
