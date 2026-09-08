@@ -8,10 +8,13 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "chonkie>=1.7.0",
     "dspy>=3.3.1",
     "falkordblite>=0.10.0",
+    "markitdown[docx,pdf,pptx]>=0.1.7",
     "pyyaml>=6.0.3",
     "streamlit>=1.63.0",
+    "textract>=2.1.0",
     "xxhash>=4.0.1",
 ]
 
