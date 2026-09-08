@@ -6,6 +6,7 @@ from pydantic import BaseModel, field_validator
 class Config(BaseModel):
     graph_db_path: Path
     metadata_db_path: Path
+    llm_model: str = "gemini/gemini-3.5-flash-lite"
 
     @field_validator("graph_db_path", "metadata_db_path", mode="before")
     @classmethod

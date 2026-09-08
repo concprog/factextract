@@ -36,6 +36,7 @@ class ExtractFacts(Signature):
     """Extract factual statements from source content."""
 
     content: str = InputField(desc="Source content to extract facts from")
+    source: Source = InputField(desc="Source metadata for the facts")
     facts: list[Fact] = OutputField(desc="List of extracted facts")
 
 
