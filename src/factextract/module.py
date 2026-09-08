@@ -1,26 +1,17 @@
 import dspy
 from dspy import Predict
 
-from .schema import ExtractFacts, ExtractIslands
+from .schema import ExtractFacts, ExtractIslands, Fact, Island
+
+extract_facts = Predict(ExtractFacts)
+extract_islands = Predict(ExtractIslands)
 
 
-class ExtractFactsModule(dspy.Module):
-    """Extract factual statements from raw text and source."""
-
-    def __init__(self):
-        super().__init__()
-        self.predict = Predict(ExtractFacts)
-
-    def forward(self, content: str, source):
-        return self.predict(content=content, source=source)
+def get_facts(content: str, source) -> list[Fact]:
+    result = extract_facts(content=content, source=source)
+    return [Fact(**f) if isinstance(f, dict) else f for f in result.facts]
 
 
-class ExtractIslandsModule(dspy.Module):
-    """Group related facts into islands based on their relationship."""
-
-    def __init__(self):
-        super().__init__()
-        self.predict = Predict(ExtractIslands)
-
-    def forward(self, fact_ids: list[str], facts: list):
-        return self.predict(fact_ids=fact_ids, facts=facts)
+def get_islands(fact_ids: list[str], facts: list[Fact]) -> list[Island]:
+    result = extract_islands(fact_ids=fact_ids, facts=facts)
+    return [Island(**i) if isinstance(i, dict) else i for i in result.islands]
