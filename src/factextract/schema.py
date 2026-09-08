@@ -37,3 +37,12 @@ class ExtractFacts(Signature):
 
     content: str = InputField(desc="Source content to extract facts from")
     facts: list[Fact] = OutputField(desc="List of extracted facts")
+
+
+class ExtractIslands(Signature):
+    """Group related facts into islands based on their relationship."""
+
+    fact_ids: list[str] = InputField(desc="List of fact hashes")
+    facts: list[Fact] = InputField(desc="List of fact objects corresponding to the fact_ids")
+    islands: list[Island] = OutputField(desc="List of fact islands grouping related facts")
+    reason: str = OutputField(desc="Explanation of why facts were grouped into islands")
