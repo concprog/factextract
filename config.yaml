@@ -1,5 +1,6 @@
 graph-db-path: data/graph.db
 metadata-db-path: data/metadata.db
+data-dir: data
 llm-model: gemini/gemini-3.5-flash-lite
 
 ingest:

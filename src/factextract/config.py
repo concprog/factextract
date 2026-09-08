@@ -16,10 +16,11 @@ class IngestConfig(BaseModel):
 class Config(BaseModel):
     graph_db_path: Path
     metadata_db_path: Path
+    data_dir: Path
     llm_model: str = "gemini/gemini-3.5-flash-lite"
     ingest: IngestConfig = IngestConfig()
 
-    @field_validator("graph_db_path", "metadata_db_path", mode="before")
+    @field_validator("graph_db_path", "metadata_db_path", "data_dir", mode="before")
     @classmethod
     def ensure_path(cls, v: str) -> Path:
         p = Path(v)

@@ -5,6 +5,11 @@ from .schema import Source
 from .config import load_config
 
 
+def glob() -> list[Source]:
+    config = load_config()
+    return [Source(file=p) for p in config.data_dir.rglob("*.pdf")]
+
+
 def ingest(source: Source) -> list[str]:
     config = load_config()
     ic = config.ingest
