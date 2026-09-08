@@ -1,0 +1,2 @@
+graph-db-path: data/graph.db
+metadata-db-path: data/metadata.db
