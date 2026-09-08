@@ -1,6 +1,7 @@
 import sqlite3
 import json
 from datetime import datetime
+from functools import wraps
 
 from factextract.schema import Source, Fact, Island
 from factextract.config import load_config
@@ -14,12 +15,29 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def with_conn(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        conn = _connect()
+        try:
+            result = func(conn, *args, **kwargs)
+            conn.commit()
+            return result
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    return wrapper
+
+
 def init_db() -> None:
     conn = _connect()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS sources (
             hash TEXT PRIMARY KEY,
-            file TEXT NOT NULL
+            file TEXT NOT NULL,
+            title TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS facts (
@@ -35,105 +53,147 @@ def init_db() -> None:
 
         CREATE TABLE IF NOT EXISTS islands (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fact_ids TEXT NOT NULL,
-            relation_type TEXT NOT NULL
+            relation_type TEXT NOT NULL,
+            reason TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS island_fact (
+            island_id INTEGER NOT NULL REFERENCES islands(id) ON DELETE CASCADE,
+            fact_id TEXT NOT NULL REFERENCES facts(hash) ON DELETE CASCADE,
+            PRIMARY KEY (island_id, fact_id)
+        ) WITHOUT ROWID;
+
+        CREATE INDEX IF NOT EXISTS idx_island_fact_fact ON island_fact(fact_id, island_id);
     """)
     conn.close()
 
 
-def store_source(source: Source) -> str:
-    conn = _connect()
-    conn.execute(
-        "INSERT OR IGNORE INTO sources (hash, file) VALUES (?, ?)",
-        (source.hash, str(source.file)),
+@with_conn
+def store_sources(conn, sources: list[Source]) -> list[str]:
+    conn.executemany(
+        "INSERT OR IGNORE INTO sources (hash, file, title) VALUES (?, ?, ?)",
+        [(s.hash, str(s.file), s.title) for s in sources],
     )
-    conn.commit()
-    conn.close()
-    return source.hash
+    return [s.hash for s in sources]
 
 
-def store_fact(fact: Fact) -> str:
-    conn = _connect()
-    conn.execute(
+@with_conn
+def store_facts(conn, facts: list[Fact]) -> list[str]:
+    conn.executemany(
         "INSERT OR IGNORE INTO facts (hash, content, source_hash, time, window_seconds) VALUES (?, ?, ?, ?, ?)",
-        (
-            fact.hash,
-            fact.content,
-            fact.source.hash,
-            fact.time.isoformat(),
-            fact.window.total_seconds(),
-        ),
+        [
+            (f.hash, f.content, f.source.hash, f.time.isoformat(), f.window.total_seconds())
+            for f in facts
+        ],
     )
-    conn.commit()
-    conn.close()
-    return fact.hash
+    return [f.hash for f in facts]
 
 
-def store_island(island: Island) -> int:
-    conn = _connect()
-    cursor = conn.execute(
-        "INSERT INTO islands (fact_ids, relation_type) VALUES (?, ?)",
-        (json.dumps(island.fact_ids), island.relation_type),
+@with_conn
+def store_islands(conn, islands: list[Island]) -> list[int]:
+    ids = []
+    for island in islands:
+        cursor = conn.execute(
+            "INSERT INTO islands (relation_type, reason) VALUES (?, ?)",
+            (island.relation_type, island.reason),
+        )
+        island_id = cursor.lastrowid
+        conn.executemany(
+            "INSERT OR IGNORE INTO island_fact (island_id, fact_id) VALUES (?, ?)",
+            [(island_id, fid) for fid in island.fact_ids],
+        )
+        ids.append(island_id)
+    return ids
+
+
+@with_conn
+def store_or_update_sources(conn, sources: list[Source]) -> list[str]:
+    conn.executemany(
+        "INSERT OR REPLACE INTO sources (hash, file, title) VALUES (?, ?, ?)",
+        [(s.hash, str(s.file), s.title) for s in sources],
     )
-    island_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    return island_id
+    return [s.hash for s in sources]
 
 
-def get_facts_by_date(start: datetime, end: datetime) -> list[dict]:
-    conn = _connect()
+@with_conn
+def store_or_update_facts(conn, facts: list[Fact]) -> list[str]:
+    conn.executemany(
+        "INSERT OR REPLACE INTO facts (hash, content, source_hash, time, window_seconds) VALUES (?, ?, ?, ?, ?)",
+        [
+            (f.hash, f.content, f.source.hash, f.time.isoformat(), f.window.total_seconds())
+            for f in facts
+        ],
+    )
+    return [f.hash for f in facts]
+
+
+@with_conn
+def store_or_update_islands(conn, islands: list[Island]) -> list[int]:
+    ids = []
+    for island in islands:
+        existing = conn.execute(
+            "SELECT id FROM islands WHERE relation_type = ? AND reason = ?",
+            (island.relation_type, island.reason),
+        ).fetchone()
+        if existing:
+            island_id = existing[0]
+            conn.execute(
+                "DELETE FROM island_fact WHERE island_id = ?", (island_id,)
+            )
+        else:
+            cursor = conn.execute(
+                "INSERT INTO islands (relation_type, reason) VALUES (?, ?)",
+                (island.relation_type, island.reason),
+            )
+            island_id = cursor.lastrowid
+        conn.executemany(
+            "INSERT OR IGNORE INTO island_fact (island_id, fact_id) VALUES (?, ?)",
+            [(island_id, fid) for fid in island.fact_ids],
+        )
+        ids.append(island_id)
+    return ids
+
+
+@with_conn
+def get_all_sources(conn) -> list[dict]:
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT * FROM facts WHERE time BETWEEN ? AND ?",
-        (start.isoformat(), end.isoformat()),
-    ).fetchall()
-    conn.close()
+    rows = conn.execute("SELECT * FROM sources").fetchall()
     return [dict(row) for row in rows]
 
 
-def get_facts_by_hash(hashes: list[str]) -> list[dict]:
-    conn = _connect()
+@with_conn
+def get_all_facts(conn) -> list[dict]:
     conn.row_factory = sqlite3.Row
-    placeholders = ",".join("?" for _ in hashes)
-    rows = conn.execute(
-        f"SELECT * FROM facts WHERE hash IN ({placeholders})",
-        hashes,
-    ).fetchall()
-    conn.close()
+    rows = conn.execute("SELECT * FROM facts").fetchall()
     return [dict(row) for row in rows]
 
 
-def search_facts_by_hash(pattern: str) -> list[dict]:
-    conn = _connect()
+@with_conn
+def get_all_islands(conn) -> list[dict]:
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        "SELECT * FROM facts WHERE hash LIKE ?",
-        (f"%{pattern}%",),
-    ).fetchall()
-    conn.close()
+    rows = conn.execute("SELECT * FROM islands").fetchall()
     return [dict(row) for row in rows]
 
 
-def get_sources_by_hash(hashes: list[str]) -> list[dict]:
-    conn = _connect()
+@with_conn
+def get_facts_in_island(conn, island_id: int) -> list[dict]:
     conn.row_factory = sqlite3.Row
-    placeholders = ",".join("?" for _ in hashes)
     rows = conn.execute(
-        f"SELECT * FROM sources WHERE hash IN ({placeholders})",
-        hashes,
+        "SELECT f.* FROM facts f "
+        "JOIN island_fact if ON f.hash = if.fact_id "
+        "WHERE if.island_id = ?",
+        (island_id,),
     ).fetchall()
-    conn.close()
     return [dict(row) for row in rows]
 
 
-def search_sources_by_hash(pattern: str) -> list[dict]:
-    conn = _connect()
+@with_conn
+def get_islands_with_fact(conn, fact_id: str) -> list[dict]:
     conn.row_factory = sqlite3.Row
     rows = conn.execute(
-        "SELECT * FROM sources WHERE hash LIKE ?",
-        (f"%{pattern}%",),
+        "SELECT i.* FROM islands i "
+        "JOIN island_fact if ON i.id = if.island_id "
+        "WHERE if.fact_id = ?",
+        (fact_id,),
     ).fetchall()
-    conn.close()
     return [dict(row) for row in rows]

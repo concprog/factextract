@@ -39,9 +39,9 @@ class Fact(BaseModel):
 
 
 class Island(BaseModel):
-    fact_ids: list[str]
     relation_type: Literal["Corroboration", "Contradiction", "Weak"]
     reason: str
+    fact_ids: list[str]
 
 
 class ExtractFacts(Signature):
