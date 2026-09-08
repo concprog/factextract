@@ -1,6 +1,7 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
+from pathlib import Path
 
 from factextract.schema import Source, Fact, Island
 from factextract.config import load_config
@@ -28,6 +29,33 @@ def with_conn(func):
         finally:
             conn.close()
     return wrapper
+
+
+def _source_from_row(row) -> Source:
+    return Source(file=Path(row["file"]))
+
+
+def _fact_from_row(conn, row) -> Fact:
+    source_row = conn.execute(
+        "SELECT * FROM sources WHERE hash = ?", (row["source_hash"],)
+    ).fetchone()
+    return Fact(
+        content=row["content"],
+        source=_source_from_row(source_row),
+        time=datetime.fromisoformat(row["time"]),
+        window=timedelta(seconds=row["window_seconds"]),
+    )
+
+
+def _island_from_row(conn, row) -> Island:
+    fact_id_rows = conn.execute(
+        "SELECT fact_id FROM island_fact WHERE island_id = ?", (row["id"],)
+    ).fetchall()
+    return Island(
+        relation_type=row["relation_type"],
+        reason=row["reason"],
+        fact_ids=[r["fact_id"] for r in fact_id_rows],
+    )
 
 
 def init_db() -> None:
@@ -154,45 +182,40 @@ def store_or_update_islands(conn, islands: list[Island]) -> list[int]:
 
 
 @with_conn
-def get_all_sources(conn) -> list[dict]:
-    conn.row_factory = sqlite3.Row
+def get_all_sources(conn) -> list[Source]:
     rows = conn.execute("SELECT * FROM sources").fetchall()
-    return [dict(row) for row in rows]
+    return [_source_from_row(row) for row in rows]
 
 
 @with_conn
-def get_all_facts(conn) -> list[dict]:
-    conn.row_factory = sqlite3.Row
+def get_all_facts(conn) -> list[Fact]:
     rows = conn.execute("SELECT * FROM facts").fetchall()
-    return [dict(row) for row in rows]
+    return [_fact_from_row(conn, row) for row in rows]
 
 
 @with_conn
-def get_all_islands(conn) -> list[dict]:
-    conn.row_factory = sqlite3.Row
+def get_all_islands(conn) -> list[Island]:
     rows = conn.execute("SELECT * FROM islands").fetchall()
-    return [dict(row) for row in rows]
+    return [_island_from_row(conn, row) for row in rows]
 
 
 @with_conn
-def get_facts_in_island(conn, island_id: int) -> list[dict]:
-    conn.row_factory = sqlite3.Row
+def get_facts_in_island(conn, island_id: int) -> list[Fact]:
     rows = conn.execute(
         "SELECT f.* FROM facts f "
         "JOIN island_fact if ON f.hash = if.fact_id "
         "WHERE if.island_id = ?",
         (island_id,),
     ).fetchall()
-    return [dict(row) for row in rows]
+    return [_fact_from_row(conn, row) for row in rows]
 
 
 @with_conn
-def get_islands_with_fact(conn, fact_id: str) -> list[dict]:
-    conn.row_factory = sqlite3.Row
+def get_islands_with_fact(conn, fact_id: str) -> list[Island]:
     rows = conn.execute(
         "SELECT i.* FROM islands i "
         "JOIN island_fact if ON i.id = if.island_id "
         "WHERE if.fact_id = ?",
         (fact_id,),
     ).fetchall()
-    return [dict(row) for row in rows]
+    return [_island_from_row(conn, row) for row in rows]
