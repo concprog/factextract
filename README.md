@@ -78,7 +78,7 @@ The system has three sequential pipelines, each triggered independently from the
 - Island extraction depends on prior fact extraction. Running `run_island_extraction` without facts returns empty.
 - The `ReActV2` agent has no conversation memory between calls. Each island extraction starts fresh.
 - No deduplication of facts across multiple ingestion runs (the `INSERT OR IGNORE` on hashes prevents duplicates, but the agent does not merge similar facts).
-- LLM API key and base URL must be set in `.env`. No UI fallback if missing.
+- No UI fallback on errors (missing `.env`, invalid config, pipeline failures).
 
 ### What I would build next
 
