@@ -2,12 +2,12 @@ import json
 from datetime import datetime
 from typing import Any
 
-import dspy
-from dspy import Parallel, Predict, Tool
-
-from . import ingest, store
+from . import ingest, store  # above dspy: transitively imports onnxruntime → numpy first (dspy#10220)
 from .config import get_config
 from .schema import ExtractFacts, ExtractIslands, Fact, Island, Source
+
+import dspy
+from dspy import Parallel, Predict, Tool
 
 PARALLEL_THREADS = 3
 

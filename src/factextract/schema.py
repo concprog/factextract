@@ -30,7 +30,7 @@ class Fact(BaseModel):
 
     @computed_field
     @property
-    def hash(self):
+    def hash(self) -> str:
         return (
             str(xxh32_hexdigest(self.content.encode(), seed=HASH_SEED))
             + "-"
