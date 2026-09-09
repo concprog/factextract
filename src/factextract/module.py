@@ -16,13 +16,13 @@ extract_facts = Predict(ExtractFacts)
 extract_islands = Predict(ExtractIslands)
 
 
-def configure() -> None:
+def _get_lm() -> dspy.LM:
     cfg = get_config()
     base_url = os.environ.get("LLM_BASE_URL") or cfg.llm_base_url
     kwargs: dict[str, Any] = {"api_key": os.environ["LLM_API_KEY"]}
     if base_url:
         kwargs["api_base"] = base_url
-    dspy.configure(lm=dspy.LM(cfg.llm_model, **kwargs))
+    return dspy.LM(cfg.llm_model, **kwargs)
 
 
 def get_facts(content: str, source: Source) -> list[Fact]:
@@ -110,21 +110,21 @@ def run_source_ingestion() -> list[str]:
 
 def run_fact_extraction() -> list[str]:
     """Pipeline 2: chunk every stored source, extract facts, persist them."""
-    configure()
     hashes: list[str] = []
-    for source in store.get_all_sources():
-        chunks = ingest.ingest(source)
-        facts = get_facts_from_chunks(chunks, source)
-        hashes.extend(store.store_facts(facts))
+    with dspy.context(lm=_get_lm()):
+        for source in store.get_all_sources():
+            chunks = ingest.ingest(source)
+            facts = get_facts_from_chunks(chunks, source)
+            hashes.extend(store.store_facts(facts))
     return hashes
 
 
 def run_island_extraction() -> list[int]:
     """Pipeline 3: read facts from the store, group them (agentic), persist islands."""
-    configure()
     facts = store.get_all_facts()
     if not facts:
         return []
     fact_ids = [f.hash for f in facts]
-    islands = get_islands_agentic(fact_ids, facts)
+    with dspy.context(lm=_get_lm()):
+        islands = get_islands_agentic(fact_ids, facts)
     return store.store_or_update_islands(islands)
