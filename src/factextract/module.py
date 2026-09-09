@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 from typing import Any
 
@@ -16,7 +17,7 @@ extract_islands = Predict(ExtractIslands)
 
 
 def configure() -> None:
-    dspy.configure(lm=dspy.LM(get_config().llm_model))
+    dspy.configure(lm=dspy.LM(get_config().llm_model, api_key=os.environ["LLM_API_KEY"]))
 
 
 def get_facts(content: str, source: Source) -> list[Fact]:
