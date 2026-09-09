@@ -1,22 +1,26 @@
 from pathlib import Path
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class IngestConfig(BaseModel):
-    header: bool = False
-    footer: bool = False
-    table_strategy: str = "lines_strict"
-    tokenizer: str = "gpt2"
-    chunk_size: int = 2048
-    chunk_overlap: int = 128
-    min_sentences_per_chunk: int = 1
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
+
+    header: bool = Field(default=False, alias="header")
+    footer: bool = Field(default=False, alias="footer")
+    table_strategy: str = Field(default="lines_strict", alias="table-strategy")
+    tokenizer: str = Field(default="gpt2", alias="tokenizer")
+    chunk_size: int = Field(default=2048, alias="chunk-size")
+    chunk_overlap: int = Field(default=128, alias="chunk-overlap")
+    min_sentences_per_chunk: int = Field(default=1, alias="min-sentences-per-chunk")
 
 
 class Config(BaseModel):
-    graph_db_path: Path
-    metadata_db_path: Path
-    data_dir: Path
-    llm_model: str = "gemini/gemini-3.5-flash-lite"
+    model_config = ConfigDict(validate_by_alias=True, validate_by_name=True)
+
+    graph_db_path: Path = Field(alias="graph-db-path")
+    metadata_db_path: Path = Field(alias="metadata-db-path")
+    data_dir: Path = Field(alias="data-dir")
+    llm_model: str = Field(default="gemini/gemini-3.5-flash-lite", alias="llm-model")
     ingest: IngestConfig = IngestConfig()
 
     @field_validator("graph_db_path", "metadata_db_path", mode="before")
