@@ -1,9 +1,10 @@
 import streamlit as st
+from pydantic import ValidationError
 from typing import Optional
 
-from . import module, store
-from .config import Config, get_config, set_config
-from .schema import Fact, Island
+from factextract import module, store
+from factextract.config import Config, get_config, set_config
+from factextract.schema import Fact, Island
 
 
 RELATION_COLORS = {
@@ -61,13 +62,18 @@ def render_settings() -> None:
         data_dir = st.text_input("Data directory", value=str(cfg.data_dir))
         llm_model = st.text_input("LLM model", value=cfg.llm_model)
         if st.button("Apply settings", use_container_width=True):
-            set_config(Config(
-                graph_db_path=graph_db_path,
-                metadata_db_path=metadata_db_path,
-                data_dir=data_dir,
-                llm_model=llm_model,
-                ingest=cfg.ingest,
-            ))
+            try:
+                new_cfg = Config(
+                    graph_db_path=graph_db_path,
+                    metadata_db_path=metadata_db_path,
+                    data_dir=data_dir,
+                    llm_model=llm_model,
+                    ingest=cfg.ingest,
+                )
+            except ValidationError as e:
+                st.error(f"Invalid settings: {e}")
+                return
+            set_config(new_cfg)
             store.init_db()
             st.success("Settings applied.")
             st.rerun()

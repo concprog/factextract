@@ -205,11 +205,6 @@ def get_all_islands(conn) -> list[Island]:
     return [_island_from_row(conn, row) for row in rows]
 
 
-@with_conn
-def get_facts_in_island(conn, island_id: int) -> list[Fact]:
-    return _facts_in_island(conn, island_id)
-
-
 def _facts_in_island(conn, island_id: int) -> list[Fact]:
     rows = conn.execute(
         "SELECT f.* FROM facts f "
@@ -218,6 +213,11 @@ def _facts_in_island(conn, island_id: int) -> list[Fact]:
         (island_id,),
     ).fetchall()
     return [_fact_from_row(conn, row) for row in rows]
+
+
+@with_conn
+def get_facts_in_island(conn, island_id: int) -> list[Fact]:
+    return _facts_in_island(conn, island_id)
 
 
 @with_conn

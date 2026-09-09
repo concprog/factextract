@@ -116,9 +116,9 @@ def run_fact_extraction() -> list[str]:
 def run_island_extraction() -> list[int]:
     """Pipeline 3: read facts from the store, group them (agentic), persist islands."""
     configure()
-    fact_ids = store.get_fact_ids()
     facts = store.get_all_facts()
-    if not fact_ids:
+    if not facts:
         return []
+    fact_ids = [f.hash for f in facts]
     islands = get_islands_agentic(fact_ids, facts)
     return store.store_or_update_islands(islands)
