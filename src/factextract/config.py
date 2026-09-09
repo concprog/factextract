@@ -1,5 +1,4 @@
 from pathlib import Path
-from functools import lru_cache
 from pydantic import BaseModel, field_validator
 
 
@@ -20,22 +19,57 @@ class Config(BaseModel):
     llm_model: str = "gemini/gemini-3.5-flash-lite"
     ingest: IngestConfig = IngestConfig()
 
-    @field_validator("graph_db_path", "metadata_db_path", "data_dir", mode="before")
+    @field_validator("graph_db_path", "metadata_db_path", mode="before")
     @classmethod
-    def ensure_path(cls, v: str) -> Path:
+    def ensure_parent_dir(cls, v):
         p = Path(v)
         p.parent.mkdir(parents=True, exist_ok=True)
         return p
 
+    @field_validator("data_dir", mode="before")
+    @classmethod
+    def ensure_dir(cls, v):
+        p = Path(v)
+        p.mkdir(parents=True, exist_ok=True)
+        return p
 
-@lru_cache(maxsize=1)
+
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent.parent / "config.yaml"
+
+_config: Config | None = None
+
+
 def load_config(config_path: Path | None = None) -> Config:
+    """Build a fresh Config from disk. Always reads; no caching."""
     import yaml
 
     if config_path is None:
-        config_path = Path(__file__).resolve().parent.parent.parent / "config.yaml"
+        config_path = DEFAULT_CONFIG_PATH
 
     with open(config_path) as f:
         data = yaml.safe_load(f)
 
     return Config(**data)
+
+
+def init_config(config_path: Path | None = None) -> Config:
+    """Construct the singleton. Call once at the entry point."""
+    global _config
+    _config = load_config(config_path)
+    return _config
+
+
+def set_config(config: Config) -> Config:
+    """Replace the singleton. Used by the GUI settings editor."""
+    global _config
+    _config = config
+    return _config
+
+
+def get_config() -> Config:
+    """Return the singleton; lazily constructs from default path on first call."""
+    global _config
+    if _config is None:
+        init_config()
+    assert _config is not None
+    return _config

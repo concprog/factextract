@@ -5,8 +5,8 @@ from typing import Any
 import dspy
 from dspy import Parallel, Predict, Tool
 
-from . import store
-from .config import load_config
+from . import ingest, store
+from .config import get_config
 from .schema import ExtractFacts, ExtractIslands, Fact, Island, Source
 
 PARALLEL_THREADS = 3
@@ -16,8 +16,7 @@ extract_islands = Predict(ExtractIslands)
 
 
 def configure() -> None:
-    config = load_config()
-    dspy.configure(lm=dspy.LM(config.llm_model))
+    dspy.configure(lm=dspy.LM(get_config().llm_model))
 
 
 def get_facts(content: str, source: Source) -> list[Fact]:
@@ -93,3 +92,33 @@ find_islands = dspy.ReActV2(ExtractIslands, tools=STORE_TOOLS)
 def get_islands_agentic(fact_ids: list[str], facts: list[Fact]) -> list[Island]:
     result = find_islands(fact_ids=fact_ids, facts=facts)
     return [Island(**i) if isinstance(i, dict) else i for i in result.islands]
+
+
+# --- Pipelines ---
+
+def run_source_ingestion() -> list[str]:
+    """Pipeline 1: glob PDFs from data_dir and register them as sources."""
+    sources = ingest.glob()
+    return store.store_sources(sources)
+
+
+def run_fact_extraction() -> list[str]:
+    """Pipeline 2: chunk every stored source, extract facts, persist them."""
+    configure()
+    hashes: list[str] = []
+    for source in store.get_all_sources():
+        chunks = ingest.ingest(source)
+        facts = get_facts_from_chunks(chunks, source)
+        hashes.extend(store.store_facts(facts))
+    return hashes
+
+
+def run_island_extraction() -> list[int]:
+    """Pipeline 3: read facts from the store, group them (agentic), persist islands."""
+    configure()
+    fact_ids = store.get_fact_ids()
+    facts = store.get_all_facts()
+    if not fact_ids:
+        return []
+    islands = get_islands_agentic(fact_ids, facts)
+    return store.store_or_update_islands(islands)

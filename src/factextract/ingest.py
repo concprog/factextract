@@ -2,17 +2,15 @@ import pymupdf4llm
 from chonkie import SentenceChunker
 
 from .schema import Source
-from .config import load_config
+from .config import get_config
 
 
 def glob() -> list[Source]:
-    config = load_config()
-    return [Source(file=p) for p in config.data_dir.rglob("*.pdf")]
+    return [Source(file=p) for p in get_config().data_dir.rglob("*.pdf")]
 
 
 def ingest(source: Source) -> list[str]:
-    config = load_config()
-    ic = config.ingest
+    ic = get_config().ingest
 
     md = pymupdf4llm.to_markdown(
         str(source.file),

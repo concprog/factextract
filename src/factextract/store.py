@@ -4,12 +4,11 @@ from functools import wraps
 from pathlib import Path
 
 from factextract.schema import Source, Fact, Island
-from factextract.config import load_config
+from factextract.config import get_config
 
 
 def _connect() -> sqlite3.Connection:
-    config = load_config()
-    conn = sqlite3.connect(config.metadata_db_path)
+    conn = sqlite3.connect(get_config().metadata_db_path)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
@@ -208,6 +207,10 @@ def get_all_islands(conn) -> list[Island]:
 
 @with_conn
 def get_facts_in_island(conn, island_id: int) -> list[Fact]:
+    return _facts_in_island(conn, island_id)
+
+
+def _facts_in_island(conn, island_id: int) -> list[Fact]:
     rows = conn.execute(
         "SELECT f.* FROM facts f "
         "JOIN island_fact if ON f.hash = if.fact_id "
@@ -268,12 +271,7 @@ def get_overlapping_facts(conn) -> list[tuple[Fact, Fact]]:
 @with_conn
 def get_islands_with_facts(conn) -> list[tuple[Island, list[Fact]]]:
     rows = conn.execute("SELECT * FROM islands").fetchall()
-    result = []
-    for row in rows:
-        island = _island_from_row(conn, row)
-        facts = get_facts_in_island(row["id"])
-        result.append((island, facts))
-    return result
+    return [(_island_from_row(conn, row), _facts_in_island(conn, row["id"])) for row in rows]
 
 
 @with_conn
