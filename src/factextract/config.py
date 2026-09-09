@@ -9,9 +9,9 @@ class IngestConfig(BaseModel):
     footer: bool = Field(default=False, alias="footer")
     table_strategy: str = Field(default="lines_strict", alias="table-strategy")
     tokenizer: str = Field(default="gpt2", alias="tokenizer")
-    chunk_size: int = Field(default=2048, alias="chunk-size")
+    chunk_size: int = Field(default=8192, alias="chunk-size")
     chunk_overlap: int = Field(default=128, alias="chunk-overlap")
-    min_sentences_per_chunk: int = Field(default=1, alias="min-sentences-per-chunk")
+    min_sentences_per_chunk: int = Field(default=6, alias="min-sentences-per-chunk")
 
 
 class Config(BaseModel):

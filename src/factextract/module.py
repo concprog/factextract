@@ -53,35 +53,36 @@ def _facts_to_dicts(facts: list[Fact]) -> list[dict[str, Any]]:
     ]
 
 
-def list_facts() -> str:
-    """List all facts in the store."""
-    return json.dumps(_facts_to_dicts(store.get_all_facts()))
+def list_facts() -> list[dict[str, Any]]:
+    """List ALL facts in the store. You MUST call this tool at least once before grouping islands to understand what facts are available."""
+    return _facts_to_dicts(store.get_all_facts())
 
 
-def get_fact_by_hash(fact_hash: str) -> str:
+def get_fact_by_hash(fact_hash: str) -> dict[str, Any]:
     """Get a single fact by its hash."""
     for f in store.get_all_facts():
         if f.hash == fact_hash:
-            return json.dumps({"hash": f.hash, "content": f.content, "time": f.time.isoformat(), "window": f.window})
-    return json.dumps({"error": f"Fact {fact_hash} not found"})
+            return {"hash": f.hash, "content": f.content, "time": f.time.isoformat(), "window": f.window}
+    return {"error": f"Fact {fact_hash} not found"}
 
 
-def list_overlapping_facts() -> str:
+def list_overlapping_facts() -> list[dict[str, Any]]:
     """Find pairs of facts with overlapping time windows."""
     pairs = store.get_overlapping_facts()
-    return json.dumps(
-        [{"a": {"hash": a.hash, "content": a.content}, "b": {"hash": b.hash, "content": b.content}} for a, b in pairs]
-    )
+    return [
+        {"a": {"hash": a.hash, "content": a.content}, "b": {"hash": b.hash, "content": b.content}}
+        for a, b in pairs
+    ]
 
 
-def facts_valid_at(at: str) -> str:
+def facts_valid_at(at: str) -> list[dict[str, Any]]:
     """Get facts valid at a given ISO timestamp."""
-    return json.dumps(_facts_to_dicts(store.get_facts_valid_at(datetime.fromisoformat(at))))
+    return _facts_to_dicts(store.get_facts_valid_at(datetime.fromisoformat(at)))
 
 
-def list_timestamps() -> str:
+def list_timestamps() -> list[str]:
     """List all distinct fact timestamps."""
-    return json.dumps([t.isoformat() for t in store.get_timestamps()])
+    return [t.isoformat() for t in store.get_timestamps()]
 
 
 STORE_TOOLS = [
@@ -92,6 +93,8 @@ STORE_TOOLS = [
     Tool(list_timestamps, desc="List all distinct fact timestamps."),
 ]
 
+# Use JSONAdapter with native function calling for tool support
+_adapter = dspy.JSONAdapter(use_native_function_calling=True)
 find_islands = dspy.ReActV2(ExtractIslands, tools=STORE_TOOLS)
 
 
@@ -125,6 +128,6 @@ def run_island_extraction() -> list[int]:
     if not facts:
         return []
     fact_ids = [f.hash for f in facts]
-    with dspy.context(lm=_get_lm()):
+    with dspy.context(lm=_get_lm(), adapter=_adapter):
         islands = get_islands_agentic(fact_ids, facts)
     return store.store_or_update_islands(islands)

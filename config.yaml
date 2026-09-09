@@ -9,6 +9,6 @@ ingest:
   footer: false
   table-strategy: lines_strict
   tokenizer: gpt2
-  chunk-size: 2048
+  chunk-size: 8192
   chunk-overlap: 128
-  min-sentences-per-chunk: 1
+  min-sentences-per-chunk: 6
