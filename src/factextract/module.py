@@ -17,7 +17,12 @@ extract_islands = Predict(ExtractIslands)
 
 
 def configure() -> None:
-    dspy.configure(lm=dspy.LM(get_config().llm_model, api_key=os.environ["LLM_API_KEY"]))
+    cfg = get_config()
+    base_url = os.environ.get("LLM_BASE_URL") or cfg.llm_base_url
+    kwargs: dict[str, Any] = {"api_key": os.environ["LLM_API_KEY"]}
+    if base_url:
+        kwargs["api_base"] = base_url
+    dspy.configure(lm=dspy.LM(cfg.llm_model, **kwargs))
 
 
 def get_facts(content: str, source: Source) -> list[Fact]:

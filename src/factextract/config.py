@@ -20,7 +20,8 @@ class Config(BaseModel):
     graph_db_path: Path = Field(alias="graph-db-path")
     metadata_db_path: Path = Field(alias="metadata-db-path")
     data_dir: Path = Field(alias="data-dir")
-    llm_model: str = Field(default="gemini/gemini-3.5-flash-lite", alias="llm-model")
+    llm_model: str = Field(default="openai/Qwen/Qwen3.6-27B-FP8", alias="llm-model")
+    llm_base_url: str | None = Field(default=None, alias="llm-base-url")
     ingest: IngestConfig = IngestConfig()
 
     @field_validator("graph_db_path", "metadata_db_path", mode="before")

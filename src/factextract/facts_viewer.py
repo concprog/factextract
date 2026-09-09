@@ -61,6 +61,7 @@ def render_settings() -> None:
         metadata_db_path = st.text_input("Metadata DB path", value=str(cfg.metadata_db_path))
         data_dir = st.text_input("Data directory", value=str(cfg.data_dir))
         llm_model = st.text_input("LLM model", value=cfg.llm_model)
+        llm_base_url = st.text_input("LLM base URL", value=cfg.llm_base_url or "")
         if st.button("Apply settings", use_container_width=True):
             try:
                 new_cfg = Config(
@@ -68,6 +69,7 @@ def render_settings() -> None:
                     metadata_db_path=metadata_db_path,
                     data_dir=data_dir,
                     llm_model=llm_model,
+                    llm_base_url=llm_base_url or None,
                     ingest=cfg.ingest,
                 )
             except ValidationError as e:
