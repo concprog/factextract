@@ -22,7 +22,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 ```bash
 uv sync
-streamlit run src/factextract/facts_viewer.py
+uv run main.py
 ```
 
 Place PDFs in `data/` and configure `LLM_API_KEY` and `LLM_BASE_URL` in a `.env` file at the project root.
@@ -42,7 +42,7 @@ Place PDFs in `data/` and configure `LLM_API_KEY` and `LLM_BASE_URL` in a `.env`
 - `config.py` -- explicit process-wide singleton (`init_config` / `get_config` / `set_config`). Constructed once, read at call time, swappable at runtime. Replaces an `lru_cache`-based loader that was keyed on its argument and therefore un-invalidateable (and GUI-hostile).
 - `ingest.py` -- `pymupdf4llm` (PDF to markdown, table-aware) + `chonkie` `SentenceChunker` (sentence-aware, 8192 tokens / 128 overlap).
 - `store.py` -- SQLite (WAL, FK-enforced) with `@with_conn` decorator; three tables (sources, facts, islands + join table), interval indexes, and read/write helpers used by both pipelines and agent tools.
-- `module.py` -- all DSPy programs constructed once at module level: two `Predict`s (fact extraction, non-agentic islanding) and one `ReActV2` agent with five store tools (`list_facts`, `get_fact_by_hash`, `list_overlapping_facts`, `facts_valid_at`, `list_timestamps`). Three zero-argument pipeline functions (`run_source_ingestion`, `run_fact_extraction`, `run_island_extraction`) compose ingest + extraction + store -- safe to trigger independently from the GUI.
+- `module.py` -- all DSPy programs constructed once at module level: two `Predict`s (fact extraction, non-agentic islanding) and one `IslandExtractor(dspy.Module)` agent with five store tools (`list_facts`, `get_fact_by_hash`, `list_overlapping_facts`, `facts_valid_at`, `list_timestamps`). Three zero-argument pipeline functions (`run_source_ingestion`, `run_fact_extraction`, `run_island_extraction`) compose ingest + extraction + store -- safe to trigger independently from the GUI.
 - `facts_viewer.py` -- thin Streamlit layer over store; settings editor and pipeline buttons included.
 
 ### Schema
